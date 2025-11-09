@@ -1,70 +1,86 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { useItemStore } from "@/store/itemStore";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 const BuyerInterface = () => {
-  const [buyerName, setBuyerName] = useState("");
-  const [isRegistered, setIsRegistered] = useState(false);
+  const { user } = useAuth();
   const [searchCategory, setSearchCategory] = useState("");
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const { items, buyItem } = useItemStore();
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
-  const handleRegister = () => {
-    if (!buyerName.trim()) {
-      toast.error("Please enter your name");
+  const fetchItems = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("items")
+        .select("*")
+        .eq("status", "ready_to_sell");
+
+      if (error) throw error;
+      setItems(data || []);
+    } catch (error: any) {
+      toast.error("Failed to load items");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBuy = async (itemId: string) => {
+    if (!user) {
+      toast.error("Please sign in to purchase items");
       return;
     }
-    setIsRegistered(true);
-    toast.success(`Welcome, ${buyerName}! You are registered as a Buyer`);
+
+    try {
+      const { error } = await supabase
+        .from("items")
+        .update({ 
+          buyer_id: user.id,
+          status: "sold",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", itemId)
+        .eq("status", "ready_to_sell");
+
+      if (error) throw error;
+
+      toast.success("Item purchased successfully!");
+      fetchItems();
+    } catch (error: any) {
+      toast.error(error.message || "Failed to purchase item");
+    }
   };
 
-  const handleBuy = (itemId: number) => {
-    buyItem(itemId, buyerName);
-    toast.success("Item purchased successfully!");
-  };
-
-  if (!isRegistered) {
+  if (!user) {
     return (
       <Card className="mx-auto max-w-md">
         <CardHeader>
-          <CardTitle>Buyer Registration</CardTitle>
-          <CardDescription>Register to browse and purchase items</CardDescription>
+          <CardTitle>Sign In Required</CardTitle>
+          <CardDescription>Please sign in to browse and purchase items</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="buyerName">Full Name</Label>
-            <Input
-              id="buyerName"
-              placeholder="Enter your name"
-              value={buyerName}
-              onChange={(e) => setBuyerName(e.target.value)}
-            />
-          </div>
-          <Button onClick={handleRegister} className="w-full">
-            Register as Buyer
-          </Button>
-        </CardContent>
       </Card>
     );
   }
 
-  const availableItems = items.filter((item) => item.status === "Ready to Sell");
-  const categories = [...new Set(availableItems.map((item) => item.category))];
-
+  const categories = [...new Set(items.map((item) => item.category))];
   const filteredItems = searchCategory
-    ? availableItems.filter((item) => item.category.toLowerCase().includes(searchCategory.toLowerCase()))
-    : availableItems;
+    ? items.filter((item) => item.category.toLowerCase().includes(searchCategory.toLowerCase()))
+    : items;
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Browse Items</CardTitle>
-          <CardDescription>Welcome, {buyerName}</CardDescription>
+          <CardDescription>Find refurbished items ready for purchase</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -102,18 +118,20 @@ const BuyerInterface = () => {
           <CardTitle>Items Ready to Sell</CardTitle>
         </CardHeader>
         <CardContent>
-          {filteredItems.length === 0 ? (
+          {loading ? (
+            <p className="text-muted-foreground">Loading items...</p>
+          ) : filteredItems.length === 0 ? (
             <p className="text-muted-foreground">No items available for sale</p>
           ) : (
             <div className="grid gap-4 md:grid-cols-2">
               {filteredItems.map((item) => (
                 <Card key={item.id}>
                   <CardHeader>
-                    <CardTitle>ID #{item.id} - {item.category}</CardTitle>
+                    <CardTitle>{item.category}</CardTitle>
                     <CardDescription>Condition: {item.condition}</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <p className="text-2xl font-bold">Rs{item.sellingPrice}</p>
+                    <p className="text-2xl font-bold">₹{item.selling_price}</p>
                     <Button onClick={() => handleBuy(item.id)} className="w-full">
                       Purchase
                     </Button>
