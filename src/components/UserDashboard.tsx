@@ -1,14 +1,15 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Package, ShoppingCart } from "lucide-react";
+import { Package, ShoppingCart, Receipt } from "lucide-react";
 import SellItemForm from "./user/SellItemForm";
 import MyListings from "./user/MyListings";
 import BrowseItems from "./user/BrowseItems";
+import TransactionHistory from "./user/TransactionHistory";
 
 const UserDashboard = () => {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="sell" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-2xl mx-auto">
+        <TabsList className="grid w-full grid-cols-4 max-w-3xl mx-auto">
           <TabsTrigger value="sell" className="flex items-center gap-2">
             <Package className="w-4 h-4" />
             Sell Items
@@ -20,6 +21,10 @@ const UserDashboard = () => {
           <TabsTrigger value="buy" className="flex items-center gap-2">
             <ShoppingCart className="w-4 h-4" />
             Browse & Buy
+          </TabsTrigger>
+          <TabsTrigger value="transactions" className="flex items-center gap-2">
+            <Receipt className="w-4 h-4" />
+            Transactions
           </TabsTrigger>
         </TabsList>
 
@@ -33,6 +38,10 @@ const UserDashboard = () => {
 
         <TabsContent value="buy" className="mt-6">
           <BrowseItems />
+        </TabsContent>
+
+        <TabsContent value="transactions" className="mt-6">
+          <TransactionHistory />
         </TabsContent>
       </Tabs>
     </div>
