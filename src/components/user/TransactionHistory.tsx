@@ -34,13 +34,24 @@ const TransactionHistory = () => {
     if (!user) return;
 
     const fetchTransactions = async () => {
+      // First get items for current user
+      const { data: userItems } = await supabase
+        .from("items")
+        .select("id")
+        .eq("seller_id", user.id);
+
+      if (!userItems || userItems.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      const itemIds = userItems.map(item => item.id);
+
+      // Then get transactions for those items
       const { data, error } = await supabase
         .from("transactions")
-        .select(`
-          *,
-          items!inner(seller_id)
-        `)
-        .eq("items.seller_id", user.id)
+        .select("*")
+        .in("item_id", itemIds)
         .order("created_at", { ascending: false });
 
       if (error) {
